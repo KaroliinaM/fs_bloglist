@@ -4,40 +4,18 @@ const app = express()
 const bodyParser = require('body-parser')
 const cors = require('cors')
 const mongoose = require('mongoose')
+const Blog=require('./models/blog')
+const blogRouter=require('./controllers/blog')
 
-const Blog = mongoose.model('Blog', {
-  title: String,
-  author: String,
-  url: String,
-  likes: Number
-})
-
-module.exports = Blog
-
+app.use('/api/blogs', blogRouter)
 app.use(cors())
 app.use(bodyParser.json())
-
-const mongoUrl = 'mongodb://fullstack:salis1@ds229418.mlab.com:29418/phonebook_dev'
+require('dotenv').config()
+const mongoUrl = process.env.MONGODB_URI
 mongoose.connect(mongoUrl)
 mongoose.Promise = global.Promise
 
-app.get('/api/blogs', (request, response) => {
-  Blog
-    .find({})
-    .then(blogs => {
-      response.json(blogs)
-    })
-})
 
-app.post('/api/blogs', (request, response) => {
-  const blog = new Blog(request.body)
-
-  blog
-    .save()
-    .then(result => {
-      response.status(201).json(result)
-    })
-})
 
 const PORT = 3003
 app.listen(PORT, () => {
