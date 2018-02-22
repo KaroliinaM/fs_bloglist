@@ -6,18 +6,32 @@ const cors = require('cors')
 const mongoose = require('mongoose')
 const Blog=require('./models/blog')
 const blogRouter=require('./controllers/blog')
+const config=require('./utils/config')
 
+console.log(config.mongoUrl)
+mongoose.Promise = global.Promise
 app.use('/api/blogs', blogRouter)
 app.use(cors())
 app.use(bodyParser.json())
-require('dotenv').config()
-const mongoUrl = process.env.MONGODB_URI
-mongoose.connect(mongoUrl)
-mongoose.Promise = global.Promise
+mongoose
+  .connect(config.mongoUrl)
+  .then( ()=>{
+    console.log('connected to database', config.mongoUrl)
+  })
+  .catch(err=>{
+    console.log(err)
+  })
 
+const server=http.createServer(app)
 
-
-const PORT = 3003
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
+server.listen(config.port, () => {
+  console.log(`Server running on port ${config.port}`)
 })
+
+server.on('close', ()=>{
+  mongoose.connection.close()
+})
+
+module.exports={
+  app, server
+}
