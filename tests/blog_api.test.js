@@ -101,8 +101,9 @@ test('posting a new blog works', async() => {
 
   expect(blogContentAfter.body.length).toBe(blogList.length + 1)
   expect(blogsAfter).toContain("minä")
-
 })
+
+test('undefined likes ')
 
 afterAll(()=>{
   server.close()
