@@ -10,9 +10,10 @@ const config=require('./utils/config')
 
 console.log(config.mongoUrl)
 mongoose.Promise = global.Promise
+app.use(bodyParser.json())
 app.use('/api/blogs', blogRouter)
 app.use(cors())
-app.use(bodyParser.json())
+
 mongoose
   .connect(config.mongoUrl)
   .then( ()=>{
