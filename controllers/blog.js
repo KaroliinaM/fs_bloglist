@@ -10,6 +10,10 @@ blogRouter.post('/', async (request, response) => {
   try{
     const body = request.body
 
+    if(body.title===undefined || body.url === undefined) {
+      return response.status(400).json({error: 'bad request'})
+    }
+
     const blog=new Blog({
       title: body.title,
       author: body.author,

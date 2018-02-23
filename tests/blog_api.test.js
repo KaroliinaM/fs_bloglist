@@ -103,7 +103,58 @@ test('posting a new blog works', async() => {
   expect(blogsAfter).toContain("minä")
 })
 
-test('undefined likes ')
+test('undefined likes in posted blog are saved as 0', async () => {
+  const newPost={
+    title: "Nolla likes",
+    author: "minä",
+    url: "ei urlia"
+  }
+  await api
+    .post('/api/blogs')
+    .send(newPost)
+    .expect(201)
+    .expect('Content-type', /application\/json/)
+
+  const blogsWithUpdate=await api
+    .get('/api/blogs')
+
+  const latest=blogsWithUpdate.body[blogsWithUpdate.body.length-1]
+
+  expect(latest.title).toBe("Nolla likes")
+  expect(latest.likes).toBe(0)
+})
+
+test('blogs without title or url are not saved', async ()=>{
+  const blogsBefore=await api
+    .get('/api/blogs')
+
+  const newPost={
+    author: "ei titleä",
+    url: "ei urlia"
+  }
+  await api
+    .post('/api/blogs')
+    .send(newPost)
+    .expect(400)
+
+  const post2={
+    title: "eiUrlia",
+    author: "minä"
+  }
+  await api
+    .post('/api/blogs')
+    .send(post2)
+    .expect(400)
+
+  const blogsAfter=await api
+    .get('/api/blogs')
+
+  const blogTitles=blogsAfter.body.map(blog=>blog.title)
+  const blogAuthors=blogsAfter.body.map(blog=>blog.author)
+
+  expect(blogsAfter.body.length).toBe(blogsBefore.body.length)
+
+})
 
 afterAll(()=>{
   server.close()
