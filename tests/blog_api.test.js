@@ -2,160 +2,150 @@ const supertest=require('supertest')
 const {app, server}=require('../index')
 const api=supertest(app)
 const Blog=require('../models/blog')
+const helper=require('./test_helper')
 
-const blogList=[
-  {
-    _id: "5a422a851b54a676234d17f7",
-    title: "React patterns",
-    author: "Michael Chan",
-    url: "https://reactpatterns.com/",
-    likes: 7,
-    __v: 0
-  },
-  {
-    _id: "5a422aa71b54a676234d17f8",
-    title: "Go To Statement Considered Harmful",
-    author: "Edsger W. Dijkstra",
-    url: "http://www.u.arizona.edu/~rubinson/copyright_violations/Go_To_Considered_Harmful.html",
-    likes: 5,
-    __v: 0
-  },
-  {
-    _id: "5a422b3a1b54a676234d17f9",
-    title: "Canonical string reduction",
-    author: "Edsger W. Dijkstra",
-    url: "http://www.cs.utexas.edu/~EWD/transcriptions/EWD08xx/EWD808.html",
-    likes: 12,
-    __v: 0
-  },
-  {
-    _id: "5a422b891b54a676234d17fa",
-    title: "First class tests",
-    author: "Robert C. Martin",
-    url: "http://blog.cleancoder.com/uncle-bob/2017/05/05/TestDefinitions.htmll",
-    likes: 10,
-    __v: 0
-  },
-  {
-    _id: "5a422ba71b54a676234d17fb",
-    title: "TDD harms architecture",
-    author: "Robert C. Martin",
-    url: "http://blog.cleancoder.com/uncle-bob/2017/03/03/TDD-Harms-Architecture.html",
-    likes: 0,
-    __v: 0
-  },
-  {
-    _id: "5a422bc61b54a676234d17fc",
-    title: "Type wars",
-    author: "Robert C. Martin",
-    url: "http://blog.cleancoder.com/uncle-bob/2016/05/01/TypeWars.html",
-    likes: 2,
-    __v: 0
-  }
-]
+describe('testing with existing bloglist', async ()=>{
 
-beforeAll(async () => {
-  await Blog.remove({})
+  beforeAll(async () => {
+    await Blog.remove({})
 
-  const initialBlogs=blogList.map(blog=> new Blog(blog))
-  const promiseArray= initialBlogs.map(blog=>blog.save())
-  await Promise.all(promiseArray)
-})
+    const initialBlogs=helper.blogList.map(blog=> new Blog(blog))
+    await Promise.all(initialBlogs.map(blog=>blog.save()))
+  })
 
-test('blogs are returned as json', async ()=>{
-  await api
-    .get('/api/blogs')
-    .expect(200)
-    .expect('Content-Type', /application\/json/)
-})
+  test('all blogs are returned as json', async ()=>{
+    const allBlogs= await helper.blogsInDb()
 
-test('amount of blogs and the content', async ()=>{
-  const blogs=await api
-    .get('/api/blogs')
+    const response= await api
+      .get('/api/blogs')
+      .expect(200)
+      .expect('Content-Type', /application\/json/)
 
-  const titles=blogs.body.map(blog=>blog.title)
 
-  expect(blogs.body.length).toBe(6)
-  expect(titles).toContain("TDD harms architecture")
-})
+    expect(response.body.length).toBe(allBlogs.length)
+    const titles=response.body.map(blog=>blog.title)
+    allBlogs.forEach(blog=>{
+      expect(titles).toContain(blog.title)
+    })
+  })
+  test('get a single blog by id', async()=>{
+    const initBlogs=await helper.blogsInDb()
+    const blog=initBlogs[0]
 
-test('posting a new blog works', async() => {
+    const blogById=await api
+      .get(`/api/blogs/${blog.id}`)
+      .expect(200)
 
-  const newBlog={
-    title: "uusi testiblogi",
-    author: "minä",
-    url: "ei urlia",
-    likes: 5
-  }
+    expect(blog.title).toEqual(blogById.body.title)
 
-  await api
-    .post('/api/blogs')
-    .send(newBlog)
-    .expect(201)
-    .expect('Content-Type', /application\/json/)
+  })
 
-  const blogContentAfter= await api
-    .get('/api/blogs')
+  test('posting a new blog works', async() => {
+    const initBlogs=await helper.blogsInDb()
 
-  const blogsAfter=blogContentAfter.body.map(blog=>blog.author)
+    const newBlog={
+      title: "uusi testiblogi",
+      author: "minä",
+      url: "ei urlia",
+      likes: 5
+    }
 
-  expect(blogContentAfter.body.length).toBe(blogList.length + 1)
-  expect(blogsAfter).toContain("minä")
-})
+    await api
+      .post('/api/blogs')
+      .send(newBlog)
+      .expect(201)
+      .expect('Content-Type', /application\/json/)
 
-test('undefined likes in posted blog are saved as 0', async () => {
-  const newPost={
-    title: "Nolla likes",
-    author: "minä",
-    url: "ei urlia"
-  }
-  await api
-    .post('/api/blogs')
-    .send(newPost)
-    .expect(201)
-    .expect('Content-type', /application\/json/)
+    const blogsAfter=await helper.blogsInDb()
 
-  const blogsWithUpdate=await api
-    .get('/api/blogs')
+    const authors=blogsAfter.map(blog=>blog.author)
 
-  const latest=blogsWithUpdate.body[blogsWithUpdate.body.length-1]
+    expect(blogsAfter.length).toBe(initBlogs.length + 1)
+    expect(authors).toContain("minä")
+  })
 
-  expect(latest.title).toBe("Nolla likes")
-  expect(latest.likes).toBe(0)
-})
+  test('undefined likes in posted blog are saved as 0', async () => {
+    const initBlogs=await helper.blogsInDb()
 
-test('blogs without title or url are not saved', async ()=>{
-  const blogsBefore=await api
-    .get('/api/blogs')
+    const newPost={
+      title: "Nolla likes",
+      author: "minä",
+      url: "ei urlia"
+    }
+    await api
+      .post('/api/blogs')
+      .send(newPost)
+      .expect(201)
+      .expect('Content-type', /application\/json/)
 
-  const newPost={
-    author: "ei titleä",
-    url: "ei urlia"
-  }
-  await api
-    .post('/api/blogs')
-    .send(newPost)
-    .expect(400)
+    const blogsAfter=await helper.blogsInDb()
 
-  const post2={
-    title: "eiUrlia",
-    author: "minä"
-  }
-  await api
-    .post('/api/blogs')
-    .send(post2)
-    .expect(400)
+    expect(blogsAfter.length).toBe(initBlogs.length+1)
 
-  const blogsAfter=await api
-    .get('/api/blogs')
+    const latest=blogsAfter[blogsAfter.length-1]
 
-  const blogTitles=blogsAfter.body.map(blog=>blog.title)
-  const blogAuthors=blogsAfter.body.map(blog=>blog.author)
+    expect(latest.title).toBe("Nolla likes")
+    expect(latest.likes).toBe(0)
+  })
 
-  expect(blogsAfter.body.length).toBe(blogsBefore.body.length)
+  test('blogs without title or url are not saved', async ()=>{
+    const initBlogs=await helper.blogsInDb()
 
-})
+    const newPost={
+      author: "ei titleä",
+      url: "ei urlia"
+    }
+    await api
+      .post('/api/blogs')
+      .send(newPost)
+      .expect(400)
 
-afterAll(()=>{
-  server.close()
+    const post2={
+      title: "eiUrlia",
+      author: "minä"
+    }
+    await api
+      .post('/api/blogs')
+      .send(post2)
+      .expect(400)
+
+    const blogsAfter=await helper.blogsInDb()
+
+    const blogTitles=blogsAfter.map(blog=>blog.title)
+    const blogAuthors=blogsAfter.map(blog=>blog.author)
+
+    expect(blogsAfter.length).toBe(initBlogs.length)
+    expect(blogTitles).not.toContain("eiUrlia")
+    expect(blogAuthors).not.toContain("ei titleä")
+  })
+  describe('testing for deletion', async()=>{
+
+    let blogForDeletion
+    beforeAll(async ()=>{
+      blogForDeletion=new Blog({
+        title: "testing for deletion",
+        author: "minä",
+        url: "ei urlia"
+      })
+      await blogForDeletion.save()
+    })
+    test('deletion of a blog works', async ()=>{
+      const initBlogs=await helper.blogsInDb()
+
+      await api
+        .delete(`/api/blogs/${blogForDeletion._id}`)
+        .expect(204)
+
+      const blogsAfter=await helper.blogsInDb()
+
+      expect(blogsAfter.length).toBe(initBlogs.length-1)
+      const titles=blogsAfter.map(blog=>blog.title)
+      expect(titles).not.toContain(blogForDeletion.title)
+
+    })
+  })
+
+  afterAll(()=>{
+    server.close()
+  })
 })
