@@ -12,6 +12,7 @@ const usersRouter=require('./controllers/users')
 const loginRouter=require('./controllers/login')
 
 mongoose.Promise = global.Promise
+app.use(express.static('build'))
 app.use(bodyParser.json())
 app.use(middleware.tokenExtractor)
 
